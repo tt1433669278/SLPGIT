@@ -5,7 +5,7 @@
 - 论文算法设计
     - 骨干网络构建
     - 虚假消息广播
-
+      这份是动态骨干，用于实验，做参数变化，但是公式和参数可能不太对
 """
 import heapq
 import math
@@ -105,8 +105,8 @@ class cpstopoFakeScheduling:
         self.nodenum = []
         self.w_1 = w_1
         self.w_2 = w_2
-        print "参数 w_1：", self.w_1
-        print "参数 w_2：", self.w_2
+        print " w_1：", self.w_1
+        print " w_2：", self.w_2
         self.hunsafe_plt = []
         self.hundelay_plt = []
 
@@ -407,15 +407,20 @@ class cpstopoFakeScheduling:
         else:
             CP = node.weight
         # CD
-        # self.w_1 = 0.8
-        # self.w_2 = 0.12
+
         dist = 0
         for i in node.adj:
             dist += self.G.calculate2Distance(self.G.nodeList[i], node)
-
-        CD = self.w_1 * len(node.adj) + self.w_2 * dist + (1. - rankEV * 1. / len(node.adj)) + np.exp(
+        # 第一版公式 不佳
+        # CD = self.w_1 * len(node.adj) + self.w_2 * dist + (1. - rankEV * 1. / len(node.adj)) + np.exp(
+        #     CP - numC * 1. / len(node.adj))
+        # cd1 = np.exp(numB * 1. / len(node.adj)) / CD
+        # 第二版公式 实验中
+        CD = np.exp(1. - rankEV * 1. / len(node.adj)) + np.exp(
             CP - numC * 1. / len(node.adj))
-        cd1 = np.exp(numB * 1. / len(node.adj)) / CD
+        p_i = np.exp(numB * 1. / len(node.adj)) / CD
+        m = (self.w_1 * len(node.adj) + self.w_2 * dist)
+        cd1 = p_i / m
         # p_i
         # numI = len(node.adj)
         # p_i_z = self.C_Alpha * np.exp(numB * 1. / numI)  # 分子
@@ -685,7 +690,7 @@ if __name__ == '__main__':
         print '网络规模：', network.nodeNumber, network.areaLength
 
         fs = cpstopoFakeScheduling(G=network,
-                                   Tmax=4000, c_capture=1e-40, w_1=w_1, w_2=0.4,
+                                   Tmax=4000, c_capture=1e-40, w_1=w_1, w_2=0.01,
                                    sink_pos=(-200, -200), source_pos=(200, 200))
         sum_delay = 0
         fs.fakeScheduling()
@@ -715,9 +720,9 @@ if __name__ == '__main__':
                  textcoords='offset points', arrowprops=dict(arrowstyle="->", color='green'))
     plt.xlabel('w_1')
     plt.ylabel('Values')
-    plt.title('w_2:0.2 Variation of safe with different w_1')
-    plt.savefig('graph/w_2 no bian/w_2=0.4/w_2:0.9safe.png')
-    plt.show()
+    plt.title('w_2:0.01 Variation of safe with different w_1')
+    plt.savefig('graph/w_2 no bian/two banben/w_2:0.01safe.png')
+    # plt.show()
 
     plt.plot(w_1_values, hunenergy_plt, 'b-', label='hunenergy_plt')
     plt.plot(w_1_values, hundelay_plt, 'r:.', label='hundelay_plt')
@@ -728,17 +733,18 @@ if __name__ == '__main__':
                  textcoords='offset points', arrowprops=dict(arrowstyle="->", color='red'))
     plt.xlabel('w_1')
     plt.ylabel('Values')
-    plt.title('w_2:0.2 Variation of energy-delay with different w_1')
-    plt.show()
+    plt.title('w_2:0.01 Variation of energy-delay with different w_1')
+    plt.savefig('graph/w_2 no bian/two banben/w_2:0.01ead.png')
+    # plt.show()
 
-    fs.backbonePlot()
-    fs.plotDelayandConsumption()
-    fs.useofnode()
+    # fs.backbonePlot()
+    # fs.plotDelayandConsumption()
+    # fs.useofnode()
     # 每轮的虚假源节点数量
     a = [len(x) for x in fs.listFakeSource]
     print 'a', a
-    plt.figure(figsize=(15, 3))
-    plt.plot(a)
-    plt.ylabel('The number of fake source')
-    plt.show()
+    # plt.figure(figsize=(15, 3))
+    # plt.plot(a)
+    # plt.ylabel('The number of fake source')
+    # plt.show()
     fs.attacker.display()

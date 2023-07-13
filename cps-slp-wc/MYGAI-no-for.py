@@ -5,7 +5,7 @@
 - 论文算法设计
     - 骨干网络构建
     - 虚假消息广播
-
+      用来试一下梯度上升看看在不循环的情况下能不能算出最优值
 """
 import heapq
 import math
@@ -313,14 +313,42 @@ class cpstopoFakeScheduling:
         else:
             CP = node.weight
         # CD
-        w_1 = 0.8
-        w_2 = 0.12
+        # w_1 = 0.8
+        # w_2 = 0.12
         dist = 0
         for i in node.adj:
             dist += self.G.calculate2Distance(self.G.nodeList[i], node)
+        a = np.exp(numB * 1. / len(node.adj))
+        b = len(node.adj)
+        c = dist
+        d = (1. - rankEV * 1. / len(node.adj)) + np.exp(CP - numC * 1. / len(node.adj))
+        # cd1 = a / self.w_1 * b + self.w_2 * c + d
 
-        CD = w_1 * len(node.adj) + w_2*dist + (1. - rankEV * 1. / len(node.adj)) + np.exp(CP - numC * 1. / len(node.adj))
-        cd1 = np.exp(numB * 1. / len(node.adj))/CD
+        CD = self.w_1 * b + self.w_2 * c + d
+        cd1 = a/(self.w_1 * b + self.w_2 * c + d)
+        learning_rate = 0.1
+
+        # 定义优化迭代次数和收敛条件
+        max_iterations = 1000
+        convergence_threshold = 1e-6
+        iteration = 0
+        w1 = self.w_1
+        w2 = self.w_2
+        while iteration < max_iterations:
+            # 计算当前参数下的目标值和梯度
+            m = cd1
+            gradient_w1, gradient_w2 = self.compute_gradient(w1, w2, a, b, c, d)
+            # 更新参数
+            w1 -= learning_rate * gradient_w1
+            w2 -= learning_rate * gradient_w2
+            # 判断是否收敛
+            if abs(gradient_w1) < convergence_threshold and abs(gradient_w2) < convergence_threshold:
+                break
+            iteration += 1
+        print("Optimal values:")
+        print("w1 =", w1)
+        print("w2 =", w2)
+        print("Optimal target value (m) =", m)
         # p_i
         # numI = len(node.adj)
         # p_i_z = self.C_Alpha * np.exp(numB * 1. / numI)  # 分子
@@ -333,6 +361,11 @@ class cpstopoFakeScheduling:
             return True
         else:
             return False
+
+    def compute_gradient(self, w1, w2, a, b, c, d):
+        gradient_w1 = -a * b / ((w1 * b + w2 * c + d) ** 2)
+        gradient_w2 = -a * c / ((w1 * b + w2 * c + d) ** 2)
+        return gradient_w1, gradient_w2
 
     def sendSource2Sink(self, Ti):
         """
@@ -465,44 +498,7 @@ class cpstopoFakeScheduling:
         # 汇聚节点
         sink_x = self.G.nodeList[self.sink].position[0]
         sink_y = self.G.nodeList[self.sink].position[1]
-        # 动态点
-        # self.t_point = self.select_random_point(self.source_pos, self.sink_pos, 6, 90)
-        # t_point_x = self.G.nodeList[self.t_point].position[0]
-        # t_point_y = self.G.nodeList[self.t_point].position[1]
-        #
-        # # 同心圆的半径
-        # radii = [10, 20, 30, 40, 50]
-        # for i in range(self.G.nodeNumber):
-        #     if i in self.sum_path:
-        #         continue
-        #     temp_x.append(self.G.nodeList[i].position[0])
-        #     temp_y.append(self.G.nodeList[i].position[1])
-        # plt.plot(temp_x, temp_y, 'ko')
-        # # 划分扇形区域
-        # num_slices = 8  # 划分扇形区域的数量
-        # angles = np.linspace(0, 360, num_slices + 1)[:-1]  # 扇形区域的角度范围
-        #
-        # for radius in radii:
-        #     for angle in angles:
-        #         wedge = Wedge((source_x, source_y), radius, angle, angle + 45, fill=False)
-        #         plt.gca().add_patch(wedge)
-        # 骨干网络
-        """
-        start->dong dong->end
-        bakbone: start->end
-        """
-        # u = -1
-        # for i, v in enumerate(self.dypath):  # dongdian
-        #     if i == 0:
-        #         u = v
-        #         continue
-        #     else:
-        #         U = self.G.nodeList[u]
-        #         V = self.G.nodeList[v]
-        #         x = [U.position[0], V.position[0]]
-        #         y = [U.position[1], V.position[1]]
-        #         plt.plot(x, y, 'k')  # 绘制两点之间连线
-        #         u = v
+
         for i, v in enumerate(self.sum_path):
             if i == 0:
                 u = v
@@ -526,9 +522,7 @@ class cpstopoFakeScheduling:
         for i in self.sum_path:
             a_x.append(self.G.nodeList[i].position[0])
             a_y.append(self.G.nodeList[i].position[1])
-        # for i in self.dypath:
-        #     da_x.append(self.G.nodeList[i].position[0])
-        #     da_y.append(self.G.nodeList[i].position[1])
+
         for i in self.G.nodeList:
             if i.state == 'FAKE':
                 fake_x.append(i.position[0])
@@ -537,13 +531,6 @@ class cpstopoFakeScheduling:
         plt.plot(da_x, da_y, 'yo')
         plt.plot(a_x, a_y, 'bo')
         plt.axis("equal")
-        #  圆点和汇聚节点的范围
-        # for radius in radii:
-        #     circle = plt.Circle((source_x, source_y), radius, color='blue', fill=False)
-        #     plt.gca().add_patch(circle)
-        # for radius in radii:
-        #     circle = plt.Circle((sink_x, sink_y), radius, color='blue', fill=False)
-        #     plt.gca().add_patch(circle)
 
         plt.plot(source_x, source_y, 'rs')
         plt.plot(sink_x, sink_y, 'rs')
@@ -562,7 +549,7 @@ class cpstopoFakeScheduling:
         for i in range(len(self.listDelay)):
             sum_delay += self.listDelay[i]
             mean_delay = sum_delay/(i + 1)
-        print "\nThe safety is", self.safety, "\nThe every listDelay is", self.listDelay, "\nThe SumDelay is", sum_delay, "\nThe MeanDelay is", mean_delay
+        print "\nThe safety is", self.safety, "\nThe MeanDelay is", mean_delay
 
 
 # def test(self):
@@ -575,7 +562,7 @@ if __name__ == '__main__':
     print '网络规模：', network.nodeNumber, network.areaLength
 
     fs = cpstopoFakeScheduling(G=network,
-                               Tmax=4000, c_capture=1e-40, w_1=0.8, w_2=0.2,
+                               Tmax=4000, c_capture=1e-40, w_1=0.8, w_2=0.12,
                                sink_pos=(-200, -200), source_pos=(200, 200))
     fs.fakeScheduling()
 
@@ -586,14 +573,14 @@ if __name__ == '__main__':
     # print restEnergy
     print "\nThe maxrestEnergy is", max(restEnergy), "\nThe neanrestEnergy is", np.mean(restEnergy), "\nThe minrestEnergy is", min(restEnergy), "\nThe stdrestEnergy is", np.std(restEnergy)
     # 最大值、平均值、最小值和标准差
-    fs.backbonePlot()
-    fs.plotDelayandConsumption()
-    fs.useofnode()
+    # fs.backbonePlot()
+    # fs.plotDelayandConsumption()
+    # fs.useofnode()
     # 每轮的虚假源节点数量
     a = [len(x) for x in fs.listFakeSource]
     print 'a', a
-    plt.figure(figsize=(15, 3))
-    plt.plot(a)
-    plt.ylabel('The number of fake source')
-    plt.show()
+    # plt.figure(figsize=(15, 3))
+    # plt.plot(a)
+    # plt.ylabel('The number of fake source')
+    # plt.show()
     fs.attacker.display()

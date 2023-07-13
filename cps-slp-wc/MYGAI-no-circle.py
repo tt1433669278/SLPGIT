@@ -5,7 +5,7 @@
 - 论文算法设计
     - 骨干网络构建
     - 虚假消息广播
-
+      根据原始不变骨干网络改第二版公式
 """
 import heapq
 import math
@@ -104,8 +104,8 @@ class cpstopoFakeScheduling:
         self.nodenum = []
         self.w_1 = w_1
         self.w_2 = w_2
-        print "参数 w_1：", self.w_1
-        print "参数 w_2：", self.w_2
+        print "w_1:", self.w_1
+        print "w_2:", self.w_2
 
     def display(self):
         print "节点总数：", self.G.nodeNumber
@@ -233,9 +233,9 @@ class cpstopoFakeScheduling:
                 self.open_set = []
             if current == self.G.nodeList[target].identity:
                 # 找到最短路径
-                print "OK 找到最短路径"
+                # print "OK 找到最短路径"
                 path = self.reconstruct_path(current)
-                print "path:", path
+                # print "path:", path
                 return path
             # current_ = self.G.nodeList[start]
             c = 0
@@ -261,41 +261,6 @@ class cpstopoFakeScheduling:
                     f_temp = self.G.nodeList[neighbor].g_cost + self.G.nodeList[neighbor].h_cost
                     heapq.heappush(self.open_set, neighbor)
             current_ = current
-            # 二版
-            #     g_temp = self.calculate_distance(self.G.nodeList[current], self.G.nodeList[neighbor])
-            #     self.G.nodeList[neighbor].g_cost = g_temp
-            #     self.G.nodeList[neighbor].h_cost = self.heuristic(self.G.nodeList[neighbor], self.G.nodeList[target])
-            #     f_temp = self.G.nodeList[neighbor].g_cost + self.G.nodeList[neighbor].h_cost
-            #     self.G.nodeList[neighbor].f_cost = self.G.nodeList[neighbor].g_cost + self.G.nodeList[neighbor].h_cost
-            #     if self.G.nodeList[neighbor].f_cost < mina:
-            #         mina = self.G.nodeList[neighbor].f_cost
-            #         # self.G.nodeList[neighbor].parent = current
-            #         min_node = self.G.nodeList[neighbor].identity
-            #
-            # if min_node not in self.open_set:
-            #     self.G.nodeList[min_node].parent = current
-            #     heapq.heappush(self.open_set, min_node)
-            # 一版
-            # if neighbor not in self.open_set:
-            #     # if self.G.nodeList[neighbor].level < self.G.nodeList[current].level:
-            #     self.G.nodeList[neighbor].parent = current
-            #     # g_temp += self.calculate_distance(self.G.nodeList[current], self.G.nodeList[neighbor])
-            #     self.G.nodeList[neighbor].g_cost = g_temp
-            #     self.G.nodeList[neighbor].h_cost = self.heuristic(self.G.nodeList[neighbor], self.G.nodeList[target])
-            #     self.G.nodeList[neighbor].f_cost = self.G.nodeList[neighbor].g_cost + self.G.nodeList[
-            #         neighbor].h_cost
-            #     heapq.heappush(self.open_set, neighbor)
-
-            # if self.G.nodeList[neighbor].f_cost < mina:
-            #     mina = self.G.nodeList[neighbor].f_cost
-            #     self.min_node = self.G.nodeList[neighbor].identity
-            #     min_node = self.G.nodeList[neighbor]
-            # # print"最小的 f_cost 值：", mina
-            # # print"对应的节点：", min_node.identity
-            #     min_node.parent = current
-            #
-            # heapq.heappush(self.open_set, self.min_node)
-
         # 未找到路径
         return None
 
@@ -303,6 +268,7 @@ class cpstopoFakeScheduling:
         st = self.G.nodeList[self.source].identity
         et = self.G.nodeList[self.sink].identity
         gd_path = self.find_shortest_path(st, et)
+        self.path = gd_path
         self.sum_path = gd_path
         print "self.sum_path = ", self.sum_path
         return self.path
@@ -336,7 +302,6 @@ class cpstopoFakeScheduling:
             rankEV = rank * 1. / len(node.adj)
         # I_v_i^C  循环统计了节点node的邻居节点中具有连接强度为1的节点的数量
         numC = 0
-        dist = 0
         if Ti == 1:
             numC = 0
         else:
@@ -350,20 +315,22 @@ class cpstopoFakeScheduling:
             CP = 0
         else:
             CP = node.weight
-        # p_i
+        dist = 0
         for i in node.adj:
             dist += self.G.calculate2Distance(self.G.nodeList[i], node)
-        CD = self.w_1 * len(node.adj) + self.w_2 * dist + (1. - rankEV * 1. / len(node.adj)) + np.exp(
+        CD = np.exp(1. - rankEV * 1. / len(node.adj)) + np.exp(
             CP - numC * 1. / len(node.adj))
-        cd1 = np.exp(numB * 1. / len(node.adj)) / CD
-
+        p_i = np.exp(numB * 1. / len(node.adj)) / CD
+        m = (self.w_1 * len(node.adj) + self.w_2 * dist)
+        cd = p_i/m
+        # p_i
         # numI = len(node.adj)
         # p_i_z = self.C_Alpha * np.exp(numB * 1. / numI)  # 分子
         # p_i_m = self.C_Beta * np.exp(1. - rankEV * 1. / numI) + (1 - self.C_Beta) * np.exp(CP - numC * 1. / numI)  # 分母
         # p_i = p_i_z / p_i_m  # 概率阈值
         # 是否广播
         RAND = np.random.rand()
-        if RAND < cd1:
+        if RAND < cd:
             return True
         else:
             return False
@@ -497,12 +464,6 @@ class cpstopoFakeScheduling:
         sink_x = self.G.nodeList[self.sink].position[0]
         sink_y = self.G.nodeList[self.sink].position[1]
 
-        # 骨干网络
-        """
-        start->dong dong->end
-        bakbone: start->end
-        """
-
         for i, v in enumerate(self.sum_path):
             if i == 0:
                 u = v
@@ -517,14 +478,21 @@ class cpstopoFakeScheduling:
         # 骨干节点
         temp_x = []
         temp_y = []
+        a_x = []  # 随机点后
+        a_y = []
         fake_x = []
         fake_y = []
+        for i in self.sum_path:
+            a_x.append(self.G.nodeList[i].position[0])
+            a_y.append(self.G.nodeList[i].position[1])
         for i in self.G.nodeList:
             if i.state == 'FAKE':
                 fake_x.append(i.position[0])
                 fake_y.append(i.position[1])
         # plt.plot(temp_x, temp_y, 'ro')  # ro红圆ko黑圆wo白圆rs红方
+        plt.plot(a_x, a_y, 'bo')
         plt.axis("equal")
+
         plt.plot(source_x, source_y, 'rs')
         plt.plot(sink_x, sink_y, 'rs')
         plt.plot(fake_x, fake_y, 'rs')
@@ -540,7 +508,7 @@ class cpstopoFakeScheduling:
         self.safety, self.listDelay, self.listEnergyConsumption = self.scheduingFakeMessages()  # 虚假源调度与网络路由事件
         for i in range(len(self.listDelay)):
             sum_delay += self.listDelay[i]
-            mean_delay = sum_delay / (i + 1)
+            mean_delay = sum_delay/(i + 1)
         print "\nThe safety is", self.safety, "\nThe every listDelay is", self.listDelay, "\nThe SumDelay is", sum_delay, "\nThe MeanDelay is", mean_delay
 
 
@@ -554,7 +522,7 @@ if __name__ == '__main__':
     print '网络规模：', network.nodeNumber, network.areaLength
 
     fs = cpstopoFakeScheduling(G=network,
-                               Tmax=2000, c_capture=1e-40, w_1=0.051, w_2=0.4,
+                               Tmax=2000, c_capture=1e-40, w_1=0.5, w_2=0.02,
                                sink_pos=(-200, -200), source_pos=(200, 200))
     fs.fakeScheduling()
 
@@ -563,8 +531,7 @@ if __name__ == '__main__':
     restEnergy = [fs.G.initEnergy - node.energy for node in fs.G.nodeList if
                   node.identity != fs.source and node.identity != fs.sink]
     # print restEnergy
-    print "\nThe maxrestEnergy is", max(restEnergy), "\nThe neanrestEnergy is", np.mean(
-        restEnergy), "\nThe minrestEnergy is", min(restEnergy), "\nThe stdrestEnergy is", np.std(restEnergy)
+    print "\nThe maxrestEnergy is", max(restEnergy), "\nThe neanrestEnergy is", np.mean(restEnergy), "\nThe minrestEnergy is", min(restEnergy), "\nThe stdrestEnergy is", np.std(restEnergy)
     # 最大值、平均值、最小值和标准差
     fs.backbonePlot()
     fs.plotDelayandConsumption()
