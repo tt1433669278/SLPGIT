@@ -1,7 +1,7 @@
 # coding=utf-8
 """
 # Source location privacy in Cyber-physical systems
-
+第二版
 - 论文算法设计
     - 骨干网络构建
     - 虚假消息广播
@@ -698,16 +698,11 @@ if __name__ == '__main__':
         for i in range(len(fs.listDelay)):
             sum_delay += fs.listDelay[i]
             mean_delay = sum_delay / (i + 1)
-        # print "\nThe safety is", self.safety, "\nThe every listDelay is", self.listDelay, "\nThe SumDelay is", sum_delay, "\nThe MeanDelay is", mean_delay
-        # print "\nThe safety is", fs.safety
-        # print "The MeanDelay is", mean_delay
         hunsafe_plt.append(fs.safety)
         hundelay_plt.append(mean_delay)
         # print np.array(fs.result)
         restEnergy = [fs.G.initEnergy - node.energy for node in fs.G.nodeList if
                       node.identity != fs.source and node.identity != fs.sink]
-        # print restEnergy
-        # print "\nThe maxrestEnergy is", max(restEnergy), "\nThe neanrestEnergy is", np.mean(restEnergy), "\nThe minrestEnergy is", min(restEnergy), "\nThe stdrestEnergy is", np.std(restEnergy)
         print "The safety is:", fs.safety, "The neanrestEnergy is:", np.mean(
             restEnergy), "The MeanDelay is:", mean_delay
         hunenergy_plt.append(np.mean(restEnergy))
@@ -716,25 +711,20 @@ if __name__ == '__main__':
     print "hunsafe_plt is :", hunsafe_plt, "\nhunenergy_plt is :", hunenergy_plt, "\nhundelay_plt is :", hundelay_plt
 
     plt.plot(w_1_values, hunsafe_plt, 'g--o', label='hunsafe_plt')
-    plt.annotate('hunsafe_plt', (w_1_values[-1], hunsafe_plt[-1]), xytext=(-20, 20),
-                 textcoords='offset points', arrowprops=dict(arrowstyle="->", color='green'))
     plt.xlabel('w_1')
     plt.ylabel('Values')
     plt.title('w_2:0.01 Variation of safe with different w_1')
-    plt.savefig('graph/w_2 no bian/two banben/w_2:0.01safe.png')
+    plt.legend()
+    plt.savefig(r'D:\project\cps-slp-wc\graph\w_2 no bian\two banben\w_1_0.2_safe.png')
     # plt.show()
 
     plt.plot(w_1_values, hunenergy_plt, 'b-', label='hunenergy_plt')
     plt.plot(w_1_values, hundelay_plt, 'r:.', label='hundelay_plt')
-    # Annotations
-    plt.annotate('hunenergy_plt', (w_1_values[-1], hunenergy_plt[-1]), xytext=(-20, 20),
-                 textcoords='offset points', arrowprops=dict(arrowstyle="->", color='blue'))
-    plt.annotate('hundelay_plt', (w_1_values[-1], hundelay_plt[-1]), xytext=(-20, 20),
-                 textcoords='offset points', arrowprops=dict(arrowstyle="->", color='red'))
     plt.xlabel('w_1')
     plt.ylabel('Values')
     plt.title('w_2:0.01 Variation of energy-delay with different w_1')
-    plt.savefig('graph/w_2 no bian/two banben/w_2:0.01ead.png')
+    plt.legend()
+    plt.savefig(r'D:\project\cps-slp-wc\graph\w_2 no bian\two banben\w_1_0.2_ead.png')
     # plt.show()
 
     # fs.backbonePlot()
