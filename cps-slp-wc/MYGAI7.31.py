@@ -1,11 +1,12 @@
 # coding=utf-8
 """
 # Source location privacy in Cyber-physical systems
-第二版
+第三版
 - 论文算法设计
     - 骨干网络构建
     - 虚假消息广播
-      这份是动态骨干，用于实验，做参数变化，但是公式和参数可能不太对
+      根据原始不变骨干网络改第一版公式
+      加幻影节点---动态
 """
 import heapq
 import math
@@ -22,11 +23,9 @@ import networkx as nx
 class cpstopoFakeScheduling:
 
     def __init__(self, G=cpsNetwork(nodeNumber=10, areaLength=20, initEnergy=1e6, radius=10), Tmax=1000, c_capture=1e-4,
-                 w_1=0.8, w_2=0.8, sink_pos=(0, 0), source_pos=(0.45 * 20, 0.4 * 20)):
-
+                 w_1=0.5, w_2=0.5, sink_pos=(0, 0), source_pos=(0.45 * 20, 0.4 * 20)):
         self.t_point = 1
-        self.path = []
-        self.dypath = []
+
         self.sum_path = []
         self.G = G
         self.Tmax = Tmax
@@ -51,10 +50,15 @@ class cpstopoFakeScheduling:
         self.nodenum = []
         self.w_1 = w_1
         self.w_2 = w_2
-        print " w_1：", self.w_1
-        print " w_2：", self.w_2
-        self.hunsafe_plt = []
-        self.hundelay_plt = []
+
+        self.phantom_sum = []
+        self.phantom = []
+        self.sourcetophantom_path = []
+        self.phantomtosink_path = []
+
+        self.twofindpath1 = []
+        print "w_1:", self.w_1
+        print "w_2:", self.w_2
 
     def display(self):
         print "节点总数：", self.G.nodeNumber
@@ -65,8 +69,6 @@ class cpstopoFakeScheduling:
         print "捕获率阈值：", self.C_Capture
         # print "参数 alpha：", self.C_Alpha
         # print "参数 beta：", self.C_Beta
-        print "参数 w_1：", self.w_1
-        print "参数 self.w_2：", self.w_2
         print "sink 编号：", self.sink
         print "source 编号：", self.source
 
@@ -92,9 +94,6 @@ class cpstopoFakeScheduling:
                 self.G.nodeList[i].adj.add(self.source)
 
     def deployAttacker(self, Node):
-        """
-		部署攻击者初始位置，位于 sink
-		"""
         self.attacker.initDeploy(Node)
 
     def generateNetworkLevel(self):
@@ -157,7 +156,6 @@ class cpstopoFakeScheduling:
         return path
 
     def find_shortest_path(self, start, target):
-
         self.G.nodeList[start].g_cost = 0  # g_cost 是从起始节点到当前节点的实际代价（距离）。对于起始节点来说，它的代价为0
         self.G.nodeList[start].h_cost = self.heuristic(self.G.nodeList[start], self.G.nodeList[
             target])  # h_cost 是启发式函数计算得到的估计代价（距离），用于估计当前节点到目标节点的距离。
@@ -168,33 +166,38 @@ class cpstopoFakeScheduling:
         ti = 1
         mina = float('inf')
         min_node = None
+
         # print "正在构建骨干.............."
         while self.open_set:
+            sorted_open_set = []
             if ti == 1:
                 current = heapq.heappop(self.open_set)
                 ti = 2
             else:
                 mina = float('inf')
                 min_node = None
-                maxa = 0
-                maxe = 0
-                for node in self.open_set:
-                    if len(self.G.nodeList[node].adj) > maxa:
-                        maxa = len(self.G.nodeList[node].adj)
-                        if self.G.nodeList[node].energy > maxe:
-                            maxe = self.G.nodeList[node].energy
-                            if self.G.nodeList[node].f_cost < mina:
-                                mina = self.G.nodeList[node].f_cost
-                                min_node = node
-                                current = min_node
-                                ti = 3
+                a = list(self.open_set)
+                sorted_open_set = sorted(self.open_set, key=lambda node: self.G.nodeList[node].energy)
+                n = len(a)
+                for i in range(n):
+                    for j in range(0, n - i - 1):
+                        if self.G.nodeList[a[j]].energy < self.G.nodeList[a[j + 1]].energy:  # 如果前面的元素比后面的元素小，则交换它们的位置
+                            self.G.nodeList[a[j]].energy, self.G.nodeList[a[j + 1]].energy = self.G.nodeList[a[j + 1]].energy, self.G.nodeList[a[j]].energy
+
+                # print a
+                top_10_elements = self.open_set
+                for node in top_10_elements:
+                    if self.G.nodeList[node].f_cost < mina:
+                        mina = self.G.nodeList[node].f_cost
+                        min_node = node
+                        current = min_node
+                        ti = 3
                 self.open_set = []
             if current == self.G.nodeList[target].identity:
-                # 找到最短路径
-                # print "OK 找到最短路径"
-                self.sum_path = self.reconstruct_path(current)
-                # print "sum_path:", self.sum_path
-                return self.sum_path
+                path = self.reconstruct_path(current)
+                if path is None:
+                    print "path is None"
+                return path
             # current_ = self.G.nodeList[start]
             c = 0
             if ti == 3:
@@ -217,98 +220,67 @@ class cpstopoFakeScheduling:
                     f_temp = self.G.nodeList[neighbor].g_cost + self.G.nodeList[neighbor].h_cost
                     heapq.heappush(self.open_set, neighbor)
             current_ = current
-            # 二版
-            #     g_temp = self.calculate_distance(self.G.nodeList[current], self.G.nodeList[neighbor])
-            #     self.G.nodeList[neighbor].g_cost = g_temp
-            #     self.G.nodeList[neighbor].h_cost = self.heuristic(self.G.nodeList[neighbor], self.G.nodeList[target])
-            #     f_temp = self.G.nodeList[neighbor].g_cost + self.G.nodeList[neighbor].h_cost
-            #     self.G.nodeList[neighbor].f_cost = self.G.nodeList[neighbor].g_cost + self.G.nodeList[neighbor].h_cost
-            #     if self.G.nodeList[neighbor].f_cost < mina:
-            #         mina = self.G.nodeList[neighbor].f_cost
-            #         # self.G.nodeList[neighbor].parent = current
-            #         min_node = self.G.nodeList[neighbor].identity
-            #
-            # if min_node not in self.open_set:
-            #     self.G.nodeList[min_node].parent = current
-            #     heapq.heappush(self.open_set, min_node)
-            # 一版
-            # if neighbor not in self.open_set:
-            #     # if self.G.nodeList[neighbor].level < self.G.nodeList[current].level:
-            #     self.G.nodeList[neighbor].parent = current
-            #     # g_temp += self.calculate_distance(self.G.nodeList[current], self.G.nodeList[neighbor])
-            #     self.G.nodeList[neighbor].g_cost = g_temp
-            #     self.G.nodeList[neighbor].h_cost = self.heuristic(self.G.nodeList[neighbor], self.G.nodeList[target])
-            #     self.G.nodeList[neighbor].f_cost = self.G.nodeList[neighbor].g_cost + self.G.nodeList[
-            #         neighbor].h_cost
-            #     heapq.heappush(self.open_set, neighbor)
-
-            # if self.G.nodeList[neighbor].f_cost < mina:
-            #     mina = self.G.nodeList[neighbor].f_cost
-            #     self.min_node = self.G.nodeList[neighbor].identity
-            #     min_node = self.G.nodeList[neighbor]
-            # # print"最小的 f_cost 值：", mina
-            # # print"对应的节点：", min_node.identity
-            #     min_node.parent = current
-            #
-            # heapq.heappush(self.open_set, self.min_node)
-
         # 未找到路径
         return None
 
-    def select_random_point(self, source_position, destination_position, num_layers, angle):
-        num_rp = []
-        num_ang = []
-        # 计算源节点和汇聚节点的连线向量
-        line_vector = np.array(destination_position) - np.array(source_position)
-        line_length = np.linalg.norm(abs(line_vector))
-        line_unit_vector = abs(line_vector) / line_length
-        # 计算每个同心圆的半径
-        radii = np.arange(5, 51, 10)  # 10ceng
-        # 计算每个区域的角度范围
-        angle_range = 360 / int(360 / angle)
-        # 计算选中区域的起始角度
-        start_angle = np.degrees(np.arctan2(line_unit_vector[1], line_unit_vector[0]))
-        # 计算选中区域的结束角度
-        end_angle = start_angle + angle_range
-
-        # 分层
+    def phantonm_node(self):
+        s_alpha = 0
+        s_beta = 0
+        R = self.G.radius
+        H = self.calculate_distance(self.G.nodeList[self.sink], self.G.nodeList[self.source])
+        result = math.asin(R / H)
+        # 将弧度转换为角度
+        sata = math.degrees(result)
+        phantom_set = []  # 第一次根据跳数得出的点
+        phantom_sum = []
         for v in self.G.nodeList:
-            jl = self.G.calculate2Distance(self.G.nodeList[self.source], v)
-            if radii[num_layers - 1] >= jl >= radii[
-                num_layers - 2]:  # and sle_angle <= end_angle
-                num_rp.append(v.identity)
+            if (self.G.nodeList[self.sink].level + 1) < v.level < (self.G.nodeList[self.source].level - 1):
+                phantom_set.append(v.identity)
+        for i in phantom_set:
+            L = self.calculate_distance(self.G.nodeList[i], self.G.nodeList[self.source])
+            Y = self.calculate_distance(self.G.nodeList[i], self.G.nodeList[self.sink])
+            s_alpha = math.degrees(math.acos((H * H + L * L - Y * Y) / (2 * H * L)))
+            s_beta = math.degrees(math.acos((H * H + Y * Y - L * L) / (2 * H * Y)))
+            if s_alpha > abs(sata) and s_beta > abs(sata):
+                self.phantom_sum.append(i)
+        return self.phantom_sum
 
-        # 分区
-        empty_sets = [[] for _ in range(int(360 / angle))]
-        a = int(360 / angle)
+    def sourcetohuan(self):
+        # self.phantonm_node()
+        self.sourcetophantom_path = []
+        self.phantomtosink_path = []
+        if len(self.phantom) == 0:
+            print "self.phantom == 0:"
+            self.phantom = list(self.phantom_sum)
+        phantom_node = random.choice(self.phantom)
+        self.phantom.remove(phantom_node)
 
-        for i in range(a):
-            # 计算区域的起始角度和结束角度
-            start_angle = i * angle
-            end_angle = start_angle + angle
-            for v in num_rp:
-                Gangle = self.G.calculate_angle(self.G.nodeList[v], self.G.nodeList[self.source])
-                if Gangle < 0:
-                    Gangle = 360 + Gangle
-                if start_angle <= abs(Gangle) <= end_angle:
-                    empty_sets[i].append(self.G.nodeList[v].identity)
-        print num_rp
-        # print empty_sets
-        # 移除空的子集合
-        empty_sets = [subset for subset in empty_sets if subset]
-        print(empty_sets)
+        self.sourcetophantom_path = self.find_shortest_path(self.source, phantom_node)
+        self.phantomtosink_path = self.find_shortest_path(phantom_node, self.sink)
+        if self.phantomtosink_path is None:
+            print "self.phantomtosink_path is None"
+        self.sum_path = self.phantomtosink_path
+        return self.phantomtosink_path
 
-        if empty_sets:
-            # 随机选择一个非空子集合
-            random_subset = random.choice(empty_sets)
-            print(random_subset)
-            # 从子集合中随机选择一个元素
-            random_element = random.choice(random_subset)
-            print(random_element)
-        else:
-            print("所有子集合都为空。")
+    # def huantosink(self, node):
+    #     num_node = []
+    #     for i in self.G.nodeList[node].adj:
+    #         if self.G.nodeList[i].level < self.G.nodeList[node].level:
+    #             num_node.append(i)
+    #     sle_node = random.choice(num_node)
+    #     self.phantomtosink_path.append(sle_node)
+    #     # self.sprphase(sle_node)
+    #     if sle_node != self.sink:
+    #         self.huantosink(sle_node)
+    #     else:
+    #         # print "self.sourcetophantom_path 为：", self.phantomtosink_path
+    #         return self.phantomtosink_path
+    #     return self.phantomtosink_path
 
-        return random_element
+    def theend(self):
+        self.sourcetohuan()
+        # print "self.sum_path = ", self.sum_path
+        return self.sum_path
 
     def calculateFakeSource(self, node, Ti):
         """
@@ -352,30 +324,33 @@ class cpstopoFakeScheduling:
             CP = 0
         else:
             CP = node.weight
-        # CD
-
         dist = 0
-        for i in node.adj:
-            dist += self.G.calculate2Distance(self.G.nodeList[i], node)
-        # 第一版公式 不佳
-        # CD = self.w_1 * len(node.adj) + self.w_2 * dist + (1. - rankEV * 1. / len(node.adj)) + np.exp(
+        # for i in node.adj:
+        #     dist += self.G.calculate2Distance(self.G.nodeList[i], node)
+        # CD = np.exp(1. - rankEV * 1. / len(node.adj)) + np.exp(
         #     CP - numC * 1. / len(node.adj))
-        # cd1 = np.exp(numB * 1. / len(node.adj)) / CD
-        # 第二版公式 实验中
-        CD = np.exp(1. - rankEV * 1. / len(node.adj)) + np.exp(
-            CP - numC * 1. / len(node.adj))
-        p_i = np.exp(numB * 1. / len(node.adj)) / CD
-        m = (self.w_1 * len(node.adj) + self.w_2 * dist)
-        cd1 = p_i / m
+        # p_i = np.exp(numB * 1. / len(node.adj)) / CD
+        # m = (self.w_1 * len(node.adj) + self.w_2 * dist)
+        # cd = p_i/m
         # p_i
-        # numI = len(node.adj)
-        # p_i_z = self.C_Alpha * np.exp(numB * 1. / numI)  # 分子
-        # p_i_m = self.C_Beta * np.exp(1. - rankEV * 1. / numI) + (1 - self.C_Beta) * np.exp(CP - numC * 1. / numI)  # 分母
-        # # p_i_m = self.C_Beta * np.exp(1. - rankEV) + (1 - self.C_Beta) * np.exp(CP - numC * 1. / numI)
-        # p_i = p_i_z / p_i_m  # 概率阈值
+        numI = len(node.adj)
+        p_i_z = 0.02 * np.exp(numB * 1. / numI)  # 分子
+        p_i_m = 0.6 * np.exp(1. - rankEV * 1. / numI) + (1 - 0.6) * np.exp(CP - numC * 1. / numI)  # 分母
+        p_i = p_i_z / p_i_m  # 概率阈值
+
+        #
+        e_sum = 0
+        # restEnergy = []
+        for i in node.adj:
+            e_sum += self.G.nodeList[i].energy
+            ave_energy = e_sum/len(node.adj)
+            Engy = node.energy/ave_energy
+        #     if node.identity != self.source and node.identity != self.sink:
+        #         restEnergy.append(self.G.initEnergy - node.energy)
+        # print np.mean(restEnergy)
         # 是否广播
         RAND = np.random.rand()
-        if RAND < cd1:
+        if RAND < p_i:
             return True
         else:
             return False
@@ -407,10 +382,9 @@ class cpstopoFakeScheduling:
             ec = self.G.energyModelusingAdjMatrix(node) * packetSize
             energyTi += ec
             self.G.nodeList[node.identity].energy -= ec
-
+            if node.energy <= 1e7:
+                print node.identity, "is zro"
             if not self.G.nodeList[node.identity].isAlive():
-                if node.energy <= 1e7:
-                    print node.identity, "is zro"
                 print "energy is no"
                 flag = True
         # 攻击者移动
@@ -442,24 +416,30 @@ class cpstopoFakeScheduling:
         listDelay = []
         listEnergyConsumption = []
         safety = -1
+        self.phantonm_node()
         for Ti in range(1, self.Tmax + 1):
+            # self.phantonm_node()
             if Ti % 100 == 0:
+                print Ti
+            elif Ti % 10 == 0:
                 print Ti,
-            # elif Ti % 10 == 0:
-            #     print Ti,
             # fake source scheduling
+            self.sourcetophantom_path = []
+            self.phantomtosink_path = []
             self.open_set = []
             self.sum_path = []
             self.closed_set = []
-            self.find_shortest_path(self.source, self.sink)
+            # self.sourcetohuan()
+            self.theend()
             for node in self.G.nodeList:
                 if node.identity != self.sink and node.identity != self.source:
                     self.G.nodeList[node.identity].state = 'FAKE' if self.calculateFakeSource(node, Ti) else 'NORMAL'
+                # if node.identity
             # update 节点权重，1：fake，0：not fake
             self.updateAdjMatrix()
             self.listFakeSource.append([node.identity for node in self.G.nodeList if node.state == 'FAKE'])
             # a = len(self.listFakeSource[Ti - 1])
-            # b = len(self.path)
+            # b = len(self.sum_path)
             # c = len(self.dypath)
             # d = a + b + c
             # e = ((d - 1) * 100 / float(self.G.nodeNumber))
@@ -472,7 +452,7 @@ class cpstopoFakeScheduling:
             listEnergyConsumption.append(energyTi)
             if flag or Ti == self.Tmax:
                 safety = Ti
-                # print "GAME OVER !!!!!!!!!!!!!!!!"
+                print "\n GAME OVER !!!!!!!!!!!!!!!!"
                 break
         return safety, listDelay, listEnergyConsumption
 
@@ -492,11 +472,11 @@ class cpstopoFakeScheduling:
         plt.title("Delay")
         plt.show()
 
-    def useofnode(self):
-        plt.figure(figsize=(15, 6))
-        plt.plot(self.nodenum)
-        plt.title("node use %")
-        plt.show()
+    # def useofnode(self):
+    #     plt.figure(figsize=(15, 6))
+    #     plt.plot(self.nodenum)
+    #     plt.title("node use %")
+    #     plt.show()
 
     def backbonePlot(self):
         """
@@ -511,45 +491,8 @@ class cpstopoFakeScheduling:
         # 汇聚节点
         sink_x = self.G.nodeList[self.sink].position[0]
         sink_y = self.G.nodeList[self.sink].position[1]
-        # 动态点
-        # self.t_point = self.select_random_point(self.source_pos, self.sink_pos, 6, 90)
-        # t_point_x = self.G.nodeList[self.t_point].position[0]
-        # t_point_y = self.G.nodeList[self.t_point].position[1]
-        #
-        # # 同心圆的半径
-        # radii = [10, 20, 30, 40, 50]
-        # for i in range(self.G.nodeNumber):
-        #     if i in self.sum_path:
-        #         continue
-        #     temp_x.append(self.G.nodeList[i].position[0])
-        #     temp_y.append(self.G.nodeList[i].position[1])
-        # plt.plot(temp_x, temp_y, 'ko')
-        # # 划分扇形区域
-        # num_slices = 8  # 划分扇形区域的数量
-        # angles = np.linspace(0, 360, num_slices + 1)[:-1]  # 扇形区域的角度范围
-        #
-        # for radius in radii:
-        #     for angle in angles:
-        #         wedge = Wedge((source_x, source_y), radius, angle, angle + 45, fill=False)
-        #         plt.gca().add_patch(wedge)
-        # 骨干网络
-        """
-        start->dong dong->end
-        bakbone: start->end
-        """
-        # u = -1
-        # for i, v in enumerate(self.dypath):  # dongdian
-        #     if i == 0:
-        #         u = v
-        #         continue
-        #     else:
-        #         U = self.G.nodeList[u]
-        #         V = self.G.nodeList[v]
-        #         x = [U.position[0], V.position[0]]
-        #         y = [U.position[1], V.position[1]]
-        #         plt.plot(x, y, 'k')  # 绘制两点之间连线
-        #         u = v
-        for i, v in enumerate(self.sum_path):
+
+        for i, v in enumerate(self.sourcetophantom_path):
             if i == 0:
                 u = v
                 continue
@@ -560,127 +503,70 @@ class cpstopoFakeScheduling:
                 y = [U.position[1], V.position[1]]
                 plt.plot(x, y, 'k')  # 绘制两点之间连线
                 u = v
+        for i, v in enumerate(self.phantomtosink_path):
+            if i == 0:
+                u = v
+                continue
+            else:
+                U = self.G.nodeList[u]
+                V = self.G.nodeList[v]
+                x = [U.position[0], V.position[0]]
+                y = [U.position[1], V.position[1]]
+                plt.plot(x, y, 'b')  # 绘制两点之间连线
+                u = v
+
         # 骨干节点
-        temp_x = []
-        temp_y = []
         a_x = []  # 随机点后
         a_y = []
-        da_x = []  # 开始到随机点
-        da_y = []
         fake_x = []
         fake_y = []
         for i in self.sum_path:
             a_x.append(self.G.nodeList[i].position[0])
             a_y.append(self.G.nodeList[i].position[1])
-        # for i in self.dypath:
-        #     da_x.append(self.G.nodeList[i].position[0])
-        #     da_y.append(self.G.nodeList[i].position[1])
         for i in self.G.nodeList:
             if i.state == 'FAKE':
                 fake_x.append(i.position[0])
                 fake_y.append(i.position[1])
         # plt.plot(temp_x, temp_y, 'ro')  # ro红圆ko黑圆wo白圆rs红方
-        plt.plot(da_x, da_y, 'yo')
         plt.plot(a_x, a_y, 'bo')
         plt.axis("equal")
-        #  圆点和汇聚节点的范围
-        # for radius in radii:
-        #     circle = plt.Circle((source_x, source_y), radius, color='blue', fill=False)
-        #     plt.gca().add_patch(circle)
-        # for radius in radii:
-        #     circle = plt.Circle((sink_x, sink_y), radius, color='blue', fill=False)
-        #     plt.gca().add_patch(circle)
 
         plt.plot(source_x, source_y, 'rs')
         plt.plot(sink_x, sink_y, 'rs')
-        # plt.plot(t_point_x, t_point_y, 'rs')
         plt.plot(fake_x, fake_y, 'rs')
-        # plt.plot(self.listFakeSource[0], self.listFakeSource[1], 'bs')
         plt.show()
 
     def fakeScheduling(self):
         sum_delay = 0
         self.generateSINKandSOURCE()
         self.deployAttacker(self.G.nodeList[self.sink])  # 部署攻击者位置
-
-        # self.select_random_point(self.source_pos, self.sink_pos, 6, 45)  # 点
+        self.generateNetworkLevel()
         # self.theend()
-
-        # self.safety, self.listDelay, self.listEnergyConsumption = self.scheduingFakeMessages()  # 虚假源调度与网络路由事件
-        # for i in range(len(self.listDelay)):
-        #     sum_delay += self.listDelay[i]
-        #     mean_delay = sum_delay/(i + 1)
-        # # print "\nThe safety is", self.safety, "\nThe every listDelay is", self.listDelay, "\nThe SumDelay is", sum_delay, "\nThe MeanDelay is", mean_delay
-        # print "\nThe safety is", self.safety
-        # print "The MeanDelay is", mean_delay
-        # self.hunsafe_plt.append(self.safety)
-        # self.hundelay_plt.append(mean_delay)
-
-
-# def test(self):
-#     print self.attacker.position.identity
+        self.safety, self.listDelay, self.listEnergyConsumption = self.scheduingFakeMessages()  # 虚假源调度与网络路由事件
+        for i in range(len(self.listDelay)):
+            sum_delay += self.listDelay[i]
+            mean_delay = sum_delay / (i + 1)
+        print "\nThe safety is", self.safety, "\nThe SumDelay is", sum_delay, "\nThe MeanDelay is", mean_delay
 
 
 if __name__ == '__main__':
-    w_1 = 0
-    hunenergy_plt = []
-    hunsafe_plt = []
-    hundelay_plt = []
-    w_1_values = []
-    for i in range(100):
-        w_1 += 0.01
-        w_1_values.append(w_1)
-        # network = cpsNetwork(file_path='load_network/temp_network.csv')
-        network = cpsNetwork(file_path='load_network/network.csv')
-        print " "
-        print '网络规模：', network.nodeNumber, network.areaLength
+    # network = cpsNetwork(file_path='load_network/temp_network.csv')
+    network = cpsNetwork(file_path='load_network/network.csv')
+    print '网络规模：', network.nodeNumber, network.areaLength
 
-        fs = cpstopoFakeScheduling(G=network,
-                                   Tmax=4000, c_capture=1e-40, w_1=w_1, w_2=0.01,
-                                   sink_pos=(-200, -200), source_pos=(200, 200))
-        sum_delay = 0
-        fs.fakeScheduling()
-        fs.safety, fs.listDelay, fs.listEnergyConsumption = fs.scheduingFakeMessages()  # 虚假源调度与网络路由事件
-        for i in range(len(fs.listDelay)):
-            sum_delay += fs.listDelay[i]
-            mean_delay = sum_delay / (i + 1)
-        hunsafe_plt.append(fs.safety)
-        hundelay_plt.append(mean_delay)
-        # print np.array(fs.result)
-        restEnergy = [fs.G.initEnergy - node.energy for node in fs.G.nodeList if
-                      node.identity != fs.source and node.identity != fs.sink]
-        print "The safety is:", fs.safety, "The neanrestEnergy is:", np.mean(
-            restEnergy), "The MeanDelay is:", mean_delay
-        hunenergy_plt.append(np.mean(restEnergy))
-        # 最大值、平均值、最小值和标准差
-    # Plotting
-    print "hunsafe_plt is :", hunsafe_plt, "\nhunenergy_plt is :", hunenergy_plt, "\nhundelay_plt is :", hundelay_plt
+    fs = cpstopoFakeScheduling(G=network,
+                               Tmax=4000, c_capture=1e-40, w_1=0.5, w_2=0.02,
+                               sink_pos=(-200, -200), source_pos=(200, 200))
+    fs.fakeScheduling()
 
-    plt.plot(w_1_values, hunsafe_plt, 'g--o', label='hunsafe_plt')
-    plt.xlabel('w_1')
-    plt.ylabel('Values')
-    plt.title('w_2:0.01 Variation of safe with different w_1')
-    plt.legend()
-    plt.savefig(r'D:\project\cps-slp-wc\graph\w_2 no bian\two banben\w_1_0.2_safe.png')
-    # plt.show()
+    # print np.array(fs.result)
 
-    plt.plot(w_1_values, hunenergy_plt, 'b-', label='hunenergy_plt')
-    plt.plot(w_1_values, hundelay_plt, 'r:.', label='hundelay_plt')
-    plt.xlabel('w_1')
-    plt.ylabel('Values')
-    plt.title('w_2:0.01 Variation of energy-delay with different w_1')
-    plt.legend()
-    plt.savefig(r'D:\project\cps-slp-wc\graph\w_2 no bian\two banben\w_1_0.2_ead.png')
-    # plt.show()
-
-    # fs.backbonePlot()
-    # fs.plotDelayandConsumption()
-    # fs.useofnode()
+    restEnergy = [fs.G.initEnergy - node.energy for node in fs.G.nodeList if
+                  node.identity != fs.source and node.identity != fs.sink]
+    # print restEnergy
+    print "\nThe neanrestEnergy is", np.mean(restEnergy)
+    # 最大值、平均值、最小值和标准差
     # 每轮的虚假源节点数量
     a = [len(x) for x in fs.listFakeSource]
     print 'a', a
-    # plt.figure(figsize=(15, 3))
-    # plt.plot(a)
-    # plt.ylabel('The number of fake source')
-    # plt.show()
     fs.attacker.display()

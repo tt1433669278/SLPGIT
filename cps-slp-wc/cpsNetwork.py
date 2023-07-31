@@ -137,9 +137,9 @@ class cpsNetwork:
             if self.adjacentMatrix[neighbor, v] != 0 and neighbor != u:
                 d = self.calculate2Distance(Neighbor, self.nodeList[v])
                 if d < d0:
-                    puv = (guvl * pt) * (d * 2)
+                    puv = (guvl * pt) / (d ** 2)
                 else:
-                    puv = (guvh * pt) * (d * 4)
+                    puv = (guvh * pt) / (d ** 4)
                 pv += puv
         puv = 0  # u->v 接收功率
         d = self.calculate2Distance(self.nodeList[u], self.nodeList[v])

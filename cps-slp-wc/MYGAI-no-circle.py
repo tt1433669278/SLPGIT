@@ -78,7 +78,7 @@ class cpstopoFakeScheduling:
     def __init__(self, G=cpsNetwork(nodeNumber=10, areaLength=20, initEnergy=1e6, radius=10), Tmax=1000, c_capture=1e-4,
                  w_1=0.5, w_2=0.5, sink_pos=(0, 0), source_pos=(0.45 * 20, 0.4 * 20)):
         self.t_point = 1
-        self.path = []
+
         self.dypath = []
         self.sum_path = []
         self.G = G
@@ -268,10 +268,9 @@ class cpstopoFakeScheduling:
         st = self.G.nodeList[self.source].identity
         et = self.G.nodeList[self.sink].identity
         gd_path = self.find_shortest_path(st, et)
-        self.path = gd_path
         self.sum_path = gd_path
         print "self.sum_path = ", self.sum_path
-        return self.path
+        return self.sum_path
 
     def calculateFakeSource(self, node, Ti):
         """
@@ -411,7 +410,7 @@ class cpstopoFakeScheduling:
             self.updateAdjMatrix()
             self.listFakeSource.append([node.identity for node in self.G.nodeList if node.state == 'FAKE'])
             a = len(self.listFakeSource[Ti - 1])
-            b = len(self.path)
+            b = len(self.sum_path)
             c = len(self.dypath)
             d = a + b + c
             e = ((d - 1) * 100 / float(self.G.nodeNumber))
@@ -444,11 +443,11 @@ class cpstopoFakeScheduling:
         plt.title("Delay")
         plt.show()
 
-    def useofnode(self):
-        plt.figure(figsize=(15, 6))
-        plt.plot(self.nodenum)
-        plt.title("node use %")
-        plt.show()
+    # def useofnode(self):
+    #     plt.figure(figsize=(15, 6))
+    #     plt.plot(self.nodenum)
+    #     plt.title("node use %")
+    #     plt.show()
 
     def backbonePlot(self):
         """
@@ -476,8 +475,6 @@ class cpstopoFakeScheduling:
                 plt.plot(x, y, 'k')  # 绘制两点之间连线
                 u = v
         # 骨干节点
-        temp_x = []
-        temp_y = []
         a_x = []  # 随机点后
         a_y = []
         fake_x = []
@@ -496,14 +493,12 @@ class cpstopoFakeScheduling:
         plt.plot(source_x, source_y, 'rs')
         plt.plot(sink_x, sink_y, 'rs')
         plt.plot(fake_x, fake_y, 'rs')
-        # plt.plot(self.listFakeSource[0], self.listFakeSource[1], 'bs')
         plt.show()
 
     def fakeScheduling(self):
         sum_delay = 0
         self.generateSINKandSOURCE()
         self.deployAttacker(self.G.nodeList[self.sink])  # 部署攻击者位置
-        # self.select_random_point(self.source_pos, self.sink_pos, 6, 45)  # 点
         self.theend()
         self.safety, self.listDelay, self.listEnergyConsumption = self.scheduingFakeMessages()  # 虚假源调度与网络路由事件
         for i in range(len(self.listDelay)):
