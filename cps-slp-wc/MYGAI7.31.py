@@ -333,21 +333,28 @@ class cpstopoFakeScheduling:
         # m = (self.w_1 * len(node.adj) + self.w_2 * dist)
         # cd = p_i/m
         # p_i
-        numI = len(node.adj)
-        p_i_z = 0.02 * np.exp(numB * 1. / numI)  # 分子
-        p_i_m = 0.6 * np.exp(1. - rankEV * 1. / numI) + (1 - 0.6) * np.exp(CP - numC * 1. / numI)  # 分母
-        p_i = p_i_z / p_i_m  # 概率阈值
+        # numI = len(node.adj)
+        # p_i_z = 0.02 * np.exp(numB * 1. / numI)  # 分子
+        # p_i_m = 0.6 * np.exp(1. - rankEV * 1. / numI) + (1 - 0.6) * np.exp(CP - numC * 1. / numI)  # 分母
+        # p_i = p_i_z / p_i_m  # 概率阈值
 
         #
+        # 第三版
+        dist = 0
         e_sum = 0
+        numI = len(node.adj)
         # restEnergy = []
         for i in node.adj:
             e_sum += self.G.nodeList[i].energy
-            ave_energy = e_sum/len(node.adj)
-            Engy = node.energy/ave_energy
-        #     if node.identity != self.source and node.identity != self.sink:
-        #         restEnergy.append(self.G.initEnergy - node.energy)
-        # print np.mean(restEnergy)
+            dist += self.G.calculate2Distance(self.G.nodeList[i], node)
+        nodetosource = math.log(self.G.calculate2Distance(self.G.nodeList[self.source], node), 2.7)
+        ave_dist = dist / len(node.adj)
+        ave_energy = e_sum / len(node.adj)
+        fenzi = self.w_1 * node.energy / 1e9 * np.exp(numB * 1. / numI)
+        fenmu = self.w_2 * ave_energy / 1e9 + (1 - self.w_2) * (ave_dist + nodetosource)
+        p_i = fenzi / fenmu
+
+
         # 是否广播
         RAND = np.random.rand()
         if RAND < p_i:

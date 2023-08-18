@@ -526,21 +526,7 @@ if __name__ == '__main__':
         # Plotting
     print "hunsafe_plt is :", hunsafe_plt, "\nhunenergy_plt is :", hunenergy_plt, "\nhundelay_plt is :", hundelay_plt
 
-    plt.plot(w_2_values, hunsafe_plt, 'g--o', label='hunsafe_plt')
-    plt.xlabel('w_2')
-    plt.ylabel('Values')
-    plt.title('w_1:0.3 Variation of safe with w_2')  # ............................
-    plt.legend()
-    plt.savefig(r'D:\project\cps-slp-wc\graph\w_2 no bian\7.17\road1_w_1_0.3_safe+3.png')
-    # plt.show()
 
-    plt.plot(w_2_values, hunenergy_plt, 'b-', label='hunenergy_plt')
-    plt.plot(w_2_values, hundelay_plt, 'r:.', label='hundelay_plt')
-    plt.xlabel('w_2')
-    plt.ylabel('Values')
-    plt.title('w_1:0.3 Variation of energy-delay with w_2')  # ............................
-    plt.legend()
-    plt.savefig(r'D:\project\cps-slp-wc\graph\w_2 no bian\7.17\road1_w_1_0.3_ead+3.png')
     # plt.show()
 
     # fs.backbonePlot()

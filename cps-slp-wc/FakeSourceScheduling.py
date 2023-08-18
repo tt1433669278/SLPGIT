@@ -7,6 +7,8 @@
     - 虚假消息广播
 
 """
+import numpy as np
+
 from cpsNetwork import *
 from cpsAttacker import *
 from cpsNode import *
@@ -291,6 +293,7 @@ class cpstopoFakeScheduling:
             energyTi += ec
             self.G.nodeList[node.identity].energy -= ec
             if not self.G.nodeList[node.identity].isAlive():
+                print node.identity, "is 0"
                 flag = True
         # 攻击者移动
         self.attacker.move(self.G)
@@ -426,7 +429,7 @@ class cpstopoFakeScheduling:
         for i in range(len(self.listDelay)):
             sum_delay += self.listDelay[i]
             mean_delay = sum_delay / (i + 1)
-        print "\nThe safety is", self.safety, "\nThe every listDelay is", self.listDelay, "\nThe SumDelay is", sum_delay, "\nThe MeanDelay is", mean_delay
+        print "\nThe safety is", self.safety, "\nThe every Consumption is", np.mean(self.listEnergyConsumption), "\nThe MeanDelay is", np.mean(self.listDelay)
 
 
 # def test(self):
@@ -434,6 +437,7 @@ class cpstopoFakeScheduling:
 
 
 if __name__ == '__main__':
+    # for i in range(10):
     network = cpsNetwork(file_path='load_network/network.csv')
     print '网络规模：', network.nodeNumber, network.areaLength
 
@@ -447,7 +451,7 @@ if __name__ == '__main__':
     restEnergy = [fs.G.initEnergy - node.energy for node in fs.G.nodeList if
                   node.identity != fs.source and node.identity != fs.sink]
     # print restEnergy
-    print "\nThe maxrestEnergy is", max(restEnergy), "\nThe neanrestEnergy is", np.mean(restEnergy), "\nThe minrestEnergy is", min(restEnergy), "\nThe stdrestEnergy is", np.std(restEnergy)
+    print "\nThe maxrestEnergy is", max(restEnergy), "\nThe meanrestEnergy is", np.mean(restEnergy), "\nThe minrestEnergy is", min(restEnergy), "\nThe stdrestEnergy is", np.std(restEnergy)
 
     # result_dict = dict()
     # for ca in np.linspace(0.2, 1, 5):
@@ -476,13 +480,13 @@ if __name__ == '__main__':
     # 				experiment_safety.append(fs.safety)
     # 			result_dict[(ca, cb)] = (np.mean(experiment_energy), np.mean(experiment_delay), np.mean(experiment_safety))
 
-    fs.backbonePlot()
-    fs.plotDelayandConsumption()
-    # 每轮的虚假源节点数量
+    # fs.backbonePlot()
+    # fs.plotDelayandConsumption()
+    # # 每轮的虚假源节点数量
     a = [len(x) for x in fs.listFakeSource]
     print 'a', a
-    plt.figure(figsize=(15, 3))
-    plt.plot(a)
-    plt.ylabel('The number of fake source')
-    plt.show()
-    fs.attacker.display()
+    # plt.figure(figsize=(15, 3))
+    # plt.plot(a)
+    # plt.ylabel('The number of fake source')
+    # plt.show()
+    # fs.attacker.display()

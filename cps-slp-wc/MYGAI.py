@@ -51,8 +51,8 @@ class cpstopoFakeScheduling:
         self.nodenum = []
         self.w_1 = w_1
         self.w_2 = w_2
-        print " w_1：", self.w_1
-        print " w_2：", self.w_2
+        # print " w_1：", self.w_1
+        # print " w_2：", self.w_2
         self.hunsafe_plt = []
         self.hundelay_plt = []
 
@@ -179,15 +179,15 @@ class cpstopoFakeScheduling:
                 maxa = 0
                 maxe = 0
                 for node in self.open_set:
-                    if len(self.G.nodeList[node].adj) > maxa:
-                        maxa = len(self.G.nodeList[node].adj)
-                        if self.G.nodeList[node].energy > maxe:
-                            maxe = self.G.nodeList[node].energy
-                            if self.G.nodeList[node].f_cost < mina:
-                                mina = self.G.nodeList[node].f_cost
-                                min_node = node
-                                current = min_node
-                                ti = 3
+                    # if len(self.G.nodeList[node].adj) > maxa:
+                    #     maxa = len(self.G.nodeList[node].adj)
+                    #     if self.G.nodeList[node].energy > maxe:
+                    #         maxe = self.G.nodeList[node].energy
+                    if self.G.nodeList[node].f_cost < mina:
+                        mina = self.G.nodeList[node].f_cost
+                        min_node = node
+                        current = min_node
+                        ti = 3
                 self.open_set = []
             if current == self.G.nodeList[target].identity:
                 # 找到最短路径
@@ -217,42 +217,7 @@ class cpstopoFakeScheduling:
                     f_temp = self.G.nodeList[neighbor].g_cost + self.G.nodeList[neighbor].h_cost
                     heapq.heappush(self.open_set, neighbor)
             current_ = current
-            # 二版
-            #     g_temp = self.calculate_distance(self.G.nodeList[current], self.G.nodeList[neighbor])
-            #     self.G.nodeList[neighbor].g_cost = g_temp
-            #     self.G.nodeList[neighbor].h_cost = self.heuristic(self.G.nodeList[neighbor], self.G.nodeList[target])
-            #     f_temp = self.G.nodeList[neighbor].g_cost + self.G.nodeList[neighbor].h_cost
-            #     self.G.nodeList[neighbor].f_cost = self.G.nodeList[neighbor].g_cost + self.G.nodeList[neighbor].h_cost
-            #     if self.G.nodeList[neighbor].f_cost < mina:
-            #         mina = self.G.nodeList[neighbor].f_cost
-            #         # self.G.nodeList[neighbor].parent = current
-            #         min_node = self.G.nodeList[neighbor].identity
-            #
-            # if min_node not in self.open_set:
-            #     self.G.nodeList[min_node].parent = current
-            #     heapq.heappush(self.open_set, min_node)
-            # 一版
-            # if neighbor not in self.open_set:
-            #     # if self.G.nodeList[neighbor].level < self.G.nodeList[current].level:
-            #     self.G.nodeList[neighbor].parent = current
-            #     # g_temp += self.calculate_distance(self.G.nodeList[current], self.G.nodeList[neighbor])
-            #     self.G.nodeList[neighbor].g_cost = g_temp
-            #     self.G.nodeList[neighbor].h_cost = self.heuristic(self.G.nodeList[neighbor], self.G.nodeList[target])
-            #     self.G.nodeList[neighbor].f_cost = self.G.nodeList[neighbor].g_cost + self.G.nodeList[
-            #         neighbor].h_cost
-            #     heapq.heappush(self.open_set, neighbor)
 
-            # if self.G.nodeList[neighbor].f_cost < mina:
-            #     mina = self.G.nodeList[neighbor].f_cost
-            #     self.min_node = self.G.nodeList[neighbor].identity
-            #     min_node = self.G.nodeList[neighbor]
-            # # print"最小的 f_cost 值：", mina
-            # # print"对应的节点：", min_node.identity
-            #     min_node.parent = current
-            #
-            # heapq.heappush(self.open_set, self.min_node)
-
-        # 未找到路径
         return None
 
     def select_random_point(self, source_position, destination_position, num_layers, angle):
@@ -358,24 +323,51 @@ class cpstopoFakeScheduling:
         for i in node.adj:
             dist += self.G.calculate2Distance(self.G.nodeList[i], node)
         # 第一版公式 不佳
-        # CD = self.w_1 * len(node.adj) + self.w_2 * dist + (1. - rankEV * 1. / len(node.adj)) + np.exp(
-        #     CP - numC * 1. / len(node.adj))
-        # cd1 = np.exp(numB * 1. / len(node.adj)) / CD
+        CD = self.w_1 * len(node.adj) + self.w_2 * dist + (1. - rankEV * 1. / len(node.adj)) + np.exp(
+            CP - numC * 1. / len(node.adj))
+        cd1 = np.exp(numB * 1. / len(node.adj)) / CD
         # 第二版公式 实验中
         CD = np.exp(1. - rankEV * 1. / len(node.adj)) + np.exp(
             CP - numC * 1. / len(node.adj))
         p_i = np.exp(numB * 1. / len(node.adj)) / CD
         m = (self.w_1 * len(node.adj) + self.w_2 * dist)
         cd1 = p_i / m
-        # p_i
-        # numI = len(node.adj)
-        # p_i_z = self.C_Alpha * np.exp(numB * 1. / numI)  # 分子
-        # p_i_m = self.C_Beta * np.exp(1. - rankEV * 1. / numI) + (1 - self.C_Beta) * np.exp(CP - numC * 1. / numI)  # 分母
-        # # p_i_m = self.C_Beta * np.exp(1. - rankEV) + (1 - self.C_Beta) * np.exp(CP - numC * 1. / numI)
-        # p_i = p_i_z / p_i_m  # 概率阈值
+        # p_i 初始
+        numI = len(node.adj)
+        p_i_z = self.w_1 * np.exp(numB * 1. / numI)  # 分子
+        p_i_m = self.w_2 * np.exp(1. - rankEV * 1. / numI) + (1 - self.w_2) * np.exp(CP - numC * 1. / numI)  # 分母
+        # p_i_m = self.C_Beta * np.exp(1. - rankEV) + (1 - self.C_Beta) * np.exp(CP - numC * 1. / numI)
+        p_i = p_i_z / p_i_m  # 概率阈值
+        # 第三版
+        dist = 0
+        e_sum = 0
+        numI = len(node.adj)
+        adj = 0
+        # restEnergy = []
+        for i in node.adj:
+            e_sum += self.G.nodeList[i].energy
+            dist += self.G.calculate2Distance(self.G.nodeList[i], node)
+            adj += round(len(self.G.nodeList[i].adj), 5)
+        nodetosource = math.log(self.G.calculate2Distance(self.G.nodeList[self.source], node), 2.7)
+        ave_dist = dist / len(node.adj)
+        ave_adj = round(adj / len(node.adj), 5)
+        ave_energy = e_sum / len(node.adj)
+        E = node.energy / ave_energy
+        p = (math.log(ave_dist, 2.7))
+        q = round(len(node.adj) / ave_adj, 5)
+        # fenzi = self.w_1 * node.energy / 1e10 * np.exp(numB * 1. / numI)
+        # fenmu = self.w_2 * ave_energy / 1e10 + (1 - self.w_2)*math.log(ave_dist, 2.7) + np.exp(CP - numC * 1. / numI)
+        r = np.exp(E) * q
+        fenzi = self.w_1 * np.exp(numB * 1. / numI)
+        fenmu = (self.w_2) * np.exp(E) * q + (1 - self.w_2) * np.exp(CP - numC * 1. / numI)
+        p_i1 = fenzi / fenmu
+        # 第四版
+        sifenzi = self.w_1 * (numB + E)
+        sifenmu = self.w_2 * math.log((numI + ave_dist), 2.7) + (1 - self.w_2) * np.exp(CP - numC * 1. / numI)
+        si = sifenzi * 1. / sifenmu
         # 是否广播
         RAND = np.random.rand()
-        if RAND < cd1:
+        if RAND < si:
             return True
         else:
             return False
@@ -415,6 +407,7 @@ class cpstopoFakeScheduling:
                 flag = True
         # 攻击者移动
         self.attacker.move(self.G)
+        # self.attacker.display()
         # 源节点是否被捕获
         if self.attacker.position.identity == self.source:
             print "BE CAPTURE"
@@ -627,16 +620,16 @@ if __name__ == '__main__':
     hunsafe_plt = []
     hundelay_plt = []
     w_1_values = []
-    for i in range(100):
+    for i in range(10):
         w_1 += 0.01
         w_1_values.append(w_1)
         # network = cpsNetwork(file_path='load_network/temp_network.csv')
         network = cpsNetwork(file_path='load_network/network.csv')
-        print " "
-        print '网络规模：', network.nodeNumber, network.areaLength
+        print " THE", i, "STEP"
+        # print '网络规模：', network.nodeNumber, network.areaLength
 
         fs = cpstopoFakeScheduling(G=network,
-                                   Tmax=4000, c_capture=1e-40, w_1=w_1, w_2=0.01,
+                                   Tmax=4000, c_capture=1e-40, w_1=0.02, w_2=0.6,
                                    sink_pos=(-200, -200), source_pos=(200, 200))
         sum_delay = 0
         fs.fakeScheduling()
@@ -649,28 +642,14 @@ if __name__ == '__main__':
         # print np.array(fs.result)
         restEnergy = [fs.G.initEnergy - node.energy for node in fs.G.nodeList if
                       node.identity != fs.source and node.identity != fs.sink]
-        print "The safety is:", fs.safety, "The neanrestEnergy is:", np.mean(
-            restEnergy), "The MeanDelay is:", mean_delay
+        # print "The safety is:", fs.safety, "The neanrestEnergy is:", np.mean(
+        #     restEnergy), "The MeanDelay is:", mean_delay
         hunenergy_plt.append(np.mean(restEnergy))
         # 最大值、平均值、最小值和标准差
     # Plotting
     print "hunsafe_plt is :", hunsafe_plt, "\nhunenergy_plt is :", hunenergy_plt, "\nhundelay_plt is :", hundelay_plt
 
-    plt.plot(w_1_values, hunsafe_plt, 'g--o', label='hunsafe_plt')
-    plt.xlabel('w_1')
-    plt.ylabel('Values')
-    plt.title('w_2:0.01 Variation of safe with different w_1')
-    plt.legend()
-    plt.savefig(r'D:\project\cps-slp-wc\graph\w_2 no bian\two banben\w_1_0.2_safe.png')
-    # plt.show()
 
-    plt.plot(w_1_values, hunenergy_plt, 'b-', label='hunenergy_plt')
-    plt.plot(w_1_values, hundelay_plt, 'r:.', label='hundelay_plt')
-    plt.xlabel('w_1')
-    plt.ylabel('Values')
-    plt.title('w_2:0.01 Variation of energy-delay with different w_1')
-    plt.legend()
-    plt.savefig(r'D:\project\cps-slp-wc\graph\w_2 no bian\two banben\w_1_0.2_ead.png')
     # plt.show()
 
     # fs.backbonePlot()

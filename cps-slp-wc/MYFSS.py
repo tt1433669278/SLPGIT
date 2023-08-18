@@ -411,9 +411,39 @@ class cpstopoFakeScheduling:
         p_i_z = self.C_Alpha * np.exp(numB * 1. / numI)  # 分子
         p_i_m = self.C_Beta * np.exp(1. - rankEV * 1. / numI) + (1 - self.C_Beta) * np.exp(CP - numC * 1. / numI)  # 分母
         p_i = p_i_z / p_i_m  # 概率阈值0.009
+        # 第三版
+        dist = 0
+        e_sum = 0
+        numI = len(node.adj)
+        adj = 0
+        # restEnergy = []
+        for i in node.adj:
+            e_sum += self.G.nodeList[i].energy
+            dist += self.G.calculate2Distance(self.G.nodeList[i], node)
+            adj += round(len(self.G.nodeList[i].adj), 5)
+        nodetosource = math.log(self.G.calculate2Distance(self.G.nodeList[self.source], node), 2.7)
+        ave_dist = dist / len(node.adj)
+        ave_adj = round(adj / len(node.adj), 5)
+        ave_energy = e_sum / len(node.adj)
+        E = node.energy / ave_energy
+        p = (math.log(ave_dist, 2.7))
+        q = round(len(node.adj) / ave_adj, 5)
+        node_dise = self.G.calculate2Distance(self.G.nodeList[self.source], node)
+        # fenzi = self.w_1 * node.energy / 1e9 * np.exp(numB * 1. / numI)
+        # fenmu = self.w_2 * ave_energy / 1e9 + (1 - self.w_2)*((ave_dist) + np.exp(CP - numC * 1. / numI))
+        # r = np.exp(E) * q
+        fenzi = self.C_Alpha * np.exp(numB * 1. / numI)
+        fenmu = self.C_Beta * np.exp(E) * q + (1 - self.C_Beta) * np.exp(CP - numC * 1. / numI)
+        p_i1 = fenzi / fenmu
+        # print p_i1, p_i
+        # math.log(ave_dist, 10)
+        # 第四版
+        sifenzi = self.C_Alpha * np.exp(numB * 1. / numI) * E
+        sifenmu = self.C_Beta * math.log((ave_dist + node_dise), 2.7) + (1 - self.C_Beta) * np.exp(CP - numC * 1. / numI)
+        si = sifenzi * 1. / sifenmu
         # 是否广播
         RAND = np.random.rand()
-        if RAND < p_i:
+        if RAND < si:
             return True
         else:
             return False
@@ -667,14 +697,14 @@ if __name__ == '__main__':
     # print restEnergy
     print "\nThe maxrestEnergy is", max(restEnergy), "\nThe neanrestEnergy is", np.mean(restEnergy), "\nThe minrestEnergy is", min(restEnergy), "\nThe stdrestEnergy is", np.std(restEnergy)
     # 最大值、平均值、最小值和标准差
-    fs.backbonePlot()
-    fs.plotDelayandConsumption()
-    fs.useofnode()
+    # fs.backbonePlot()
+    # fs.plotDelayandConsumption()
+    # fs.useofnode()
     # 每轮的虚假源节点数量
     a = [len(x) for x in fs.listFakeSource]
     print 'a', a
-    plt.figure(figsize=(15, 3))
-    plt.plot(a)
-    plt.ylabel('The number of fake source')
-    plt.show()
+    # plt.figure(figsize=(15, 3))
+    # plt.plot(a)
+    # plt.ylabel('The number of fake source')
+    # plt.show()
     fs.attacker.display()
